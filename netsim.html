@@ -2,287 +2,256 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Network Traffic & DDoS Defense Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@17.0.2/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+    <title>Network DDoS Defense Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f0f4f8; 
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .simulation-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .visualization {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .connection-view {
+            flex: 1;
+            height: 300px;
+            border: 1px solid #e0e0e0;
+            position: relative;
+            overflow: hidden;
+        }
+        .server-metrics {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            text-align: center;
+        }
+    </style>
 </head>
-<body class="bg-gray-100">
-    <div id="root" class="container mx-auto p-4"></div>
+<body>
+    <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-        const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
-
-        function NetworkTrafficSimulation() {
-            const [simulationState, setSimulationState] = useState({
-                isRunning: false,
-                serverLoad: 0,
-                connections: [],
+        const NetworkDDOSSimulation = () => {
+            const [state, setState] = React.useState({
+                isSimulating: false,
                 attackType: null,
-                defendMechanism: null,
-                trafficHistory: []
+                defenseType: null,
+                connections: [],
+                serverLoad: 0,
+                blockedConnections: 0,
+                totalConnections: 0
             });
 
-            const simulationConfigRef = useRef({
-                attackTypes: {
-                    volumetric: {
-                        name: 'Volumetric Attack',
-                        maxConnections: 300,
-                        connectionRate: 50,
-                        impact: 0.8
-                    },
-                    synFlood: {
-                        name: 'SYN Flood',
-                        maxConnections: 200,
-                        connectionRate: 100,
-                        impact: 0.6
-                    },
-                    httpFlood: {
-                        name: 'HTTP Flood',
-                        maxConnections: 250,
-                        connectionRate: 75,
-                        impact: 0.7
-                    }
+            const ATTACK_TYPES = {
+                volumetric: {
+                    name: 'Volumetric Attack',
+                    connectionRate: 50,
+                    intensity: 0.7
                 },
-                defendMechanisms: {
-                    blackholing: {
-                        name: 'Blackhole Routing',
-                        effectiveness: 0.5,
-                        description: 'Drops all traffic to targeted IP'
-                    },
-                    rateLimiting: {
-                        name: 'Rate Limiting',
-                        effectiveness: 0.7,
-                        description: 'Restricts connection rate from suspicious IPs'
-                    },
-                    trafficFiltering: {
-                        name: 'Traffic Filtering',
-                        effectiveness: 0.8,
-                        description: 'Blocks malicious packet patterns'
-                    }
+                synFlood: {
+                    name: 'SYN Flood',
+                    connectionRate: 80,
+                    intensity: 0.6
+                },
+                httpFlood: {
+                    name: 'HTTP Flood',
+                    connectionRate: 60,
+                    intensity: 0.5
                 }
-            });
+            };
+
+            const DEFENSE_MECHANISMS = {
+                blackholing: {
+                    name: 'Blackhole Routing',
+                    effectiveness: 0.4
+                },
+                rateLimiting: {
+                    name: 'Rate Limiting',
+                    effectiveness: 0.6
+                },
+                trafficFiltering: {
+                    name: 'Traffic Filtering',
+                    effectiveness: 0.8
+                }
+            };
 
             const startSimulation = () => {
-                setSimulationState(prev => ({
-                    ...prev,
-                    isRunning: true,
-                    serverLoad: 0,
-                    connections: [],
-                    trafficHistory: []
+                if (!state.attackType || !state.defenseType) return;
+                
+                const simulationInterval = setInterval(() => {
+                    setState(prevState => {
+                        const attack = ATTACK_TYPES[state.attackType];
+                        const defense = DEFENSE_MECHANISMS[state.defenseType];
+
+                        const newConnection = {
+                            id: Date.now(),
+                            blocked: Math.random() < defense.effectiveness
+                        };
+
+                        const updatedConnections = [...prevState.connections, newConnection]
+                            .slice(-100); // Limit to last 100 connections
+
+                        const blockedCount = updatedConnections.filter(c => c.blocked).length;
+                        const serverLoad = Math.min(100, 
+                            (updatedConnections.length / 100) * attack.intensity * 100
+                        );
+
+                        return {
+                            ...prevState,
+                            connections: updatedConnections,
+                            serverLoad,
+                            blockedConnections: blockedCount,
+                            totalConnections: updatedConnections.length
+                        };
+                    });
+                }, 100);
+
+                setState(prevState => ({
+                    ...prevState, 
+                    isSimulating: true,
+                    simulationInterval
                 }));
             };
 
             const stopSimulation = () => {
-                setSimulationState(prev => ({
-                    ...prev,
-                    isRunning: false
+                clearInterval(state.simulationInterval);
+                setState(prevState => ({
+                    ...prevState, 
+                    isSimulating: false,
+                    connections: [],
+                    serverLoad: 0,
+                    blockedConnections: 0,
+                    totalConnections: 0
                 }));
             };
 
-            const selectAttackType = (attackKey) => {
-                if (!simulationState.isRunning) {
-                    setSimulationState(prev => ({
-                        ...prev,
-                        attackType: simulationConfigRef.current.attackTypes[attackKey]
-                    }));
-                }
-            };
-
-            const selectDefendMechanism = (defendKey) => {
-                if (!simulationState.isRunning) {
-                    setSimulationState(prev => ({
-                        ...prev,
-                        defendMechanism: simulationConfigRef.current.defendMechanisms[defendKey]
-                    }));
-                }
-            };
-
-            useEffect(() => {
-                let intervalId;
-                if (
-                    simulationState.isRunning && 
-                    simulationState.attackType && 
-                    simulationState.defendMechanism
-                ) {
-                    const attack = simulationState.attackType;
-                    const defend = simulationState.defendMechanism;
-
-                    intervalId = setInterval(() => {
-                        setSimulationState(prev => {
-                            const newConnections = prev.connections.length < attack.maxConnections
-                                ? [...prev.connections, {
-                                    id: Date.now() + Math.random(),
-                                    weight: Math.random(),
-                                    blocked: Math.random() < defend.effectiveness
-                                }]
-                                : prev.connections;
-
-                            const activeConnections = newConnections.filter(conn => !conn.blocked);
-                            const totalLoad = activeConnections.reduce((sum, conn) => sum + conn.weight, 0);
-                            const serverLoad = Math.min(100, (totalLoad / attack.maxConnections) * 100 * attack.impact);
-
-                            const newTrafficHistory = [
-                                ...prev.trafficHistory,
-                                { 
-                                    time: prev.trafficHistory.length,
-                                    total: newConnections.length,
-                                    blocked: newConnections.filter(c => c.blocked).length,
-                                    load: serverLoad
-                                }
-                            ].slice(-20);
-
-                            return {
-                                ...prev,
-                                connections: newConnections,
-                                serverLoad,
-                                trafficHistory: newTrafficHistory
-                            };
-                        });
-                    }, attack.connectionRate);
-                }
-
-                return () => {
-                    if (intervalId) clearInterval(intervalId);
-                };
-            }, [simulationState.isRunning, simulationState.attackType, simulationState.defendMechanism]);
-
             const renderConnections = () => {
-                return simulationState.connections.map((conn) => (
+                return state.connections.map(conn => (
                     <div 
                         key={conn.id} 
-                        className={`h-2 w-2 rounded-full absolute ${
-                            conn.blocked ? 'bg-red-500' : 'bg-blue-500'
-                        }`}
                         style={{
+                            position: 'absolute',
+                            width: '5px',
+                            height: '5px',
+                            borderRadius: '50%',
+                            backgroundColor: conn.blocked ? 'red' : 'blue',
                             left: `${Math.random() * 100}%`,
                             top: `${Math.random() * 100}%`,
-                            opacity: conn.weight
+                            opacity: 0.7
                         }}
                     />
                 ));
             };
 
             return (
-                <div className="p-4 max-w-6xl mx-auto bg-white shadow-lg rounded-lg">
-                    <h2 className="text-3xl font-bold mb-6 text-center">
-                        Network Defense Simulation
-                    </h2>
-
-                    <div className="mb-4">
-                        <h3 className="text-xl font-semibold mb-2">Select Attack Type</h3>
-                        <div className="flex space-x-2">
-                            {Object.keys(simulationConfigRef.current.attackTypes).map((key) => (
-                                <button
-                                    key={key}
-                                    className={`px-4 py-2 rounded ${
-                                        simulationState.attackType?.name === simulationConfigRef.current.attackTypes[key].name
-                                            ? 'bg-blue-500 text-white' 
-                                            : 'bg-gray-200 text-gray-800'
-                                    } ${simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={() => selectAttackType(key)}
-                                    disabled={simulationState.isRunning}
-                                >
-                                    {simulationConfigRef.current.attackTypes[key].name}
-                                </button>
+                <div className="simulation-container">
+                    <h1>Network DDoS Defense Simulation</h1>
+                    
+                    <div className="button-group">
+                        <select 
+                            disabled={state.isSimulating}
+                            onChange={(e) => setState(prev => ({...prev, attackType: e.target.value}))}
+                        >
+                            <option value="">Select Attack Type</option>
+                            {Object.keys(ATTACK_TYPES).map(key => (
+                                <option key={key} value={key}>
+                                    {ATTACK_TYPES[key].name}
+                                </option>
                             ))}
-                        </div>
-                    </div>
+                        </select>
 
-                    <div className="mb-4">
-                        <h3 className="text-xl font-semibold mb-2">Select Defense Mechanism</h3>
-                        <div className="flex space-x-2">
-                            {Object.keys(simulationConfigRef.current.defendMechanisms).map((key) => (
-                                <button
-                                    key={key}
-                                    className={`px-4 py-2 rounded ${
-                                        simulationState.defendMechanism?.name === simulationConfigRef.current.defendMechanisms[key].name
-                                            ? 'bg-green-500 text-white' 
-                                            : 'bg-gray-200 text-gray-800'
-                                    } ${simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={() => selectDefendMechanism(key)}
-                                    disabled={simulationState.isRunning}
-                                >
-                                    {simulationConfigRef.current.defendMechanisms[key].name}
-                                </button>
+                        <select 
+                            disabled={state.isSimulating}
+                            onChange={(e) => setState(prev => ({...prev, defenseType: e.target.value}))}
+                        >
+                            <option value="">Select Defense Mechanism</option>
+                            {Object.keys(DEFENSE_MECHANISMS).map(key => (
+                                <option key={key} value={key}>
+                                    {DEFENSE_MECHANISMS[key].name}
+                                </option>
                             ))}
-                        </div>
-                    </div>
+                        </select>
 
-                    <div className="flex space-x-2 mb-4 justify-center">
                         <button 
-                            className={`px-6 py-3 bg-green-500 text-white rounded ${
-                                simulationState.isRunning || !simulationState.attackType || !simulationState.defendMechanism 
-                                    ? 'opacity-50 cursor-not-allowed' 
-                                    : ''
-                            }`}
-                            onClick={startSimulation} 
-                            disabled={simulationState.isRunning || !simulationState.attackType || !simulationState.defendMechanism}
+                            className="button"
+                            style={{backgroundColor: 'green', color: 'white'}}
+                            disabled={state.isSimulating || !state.attackType || !state.defenseType}
+                            onClick={startSimulation}
                         >
                             Start Simulation
                         </button>
+
                         <button 
-                            className={`px-6 py-3 bg-red-500 text-white rounded ${
-                                !simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
+                            className="button"
+                            style={{backgroundColor: 'red', color: 'white'}}
+                            disabled={!state.isSimulating}
                             onClick={stopSimulation}
-                            disabled={!simulationState.isRunning}
                         >
                             Stop Simulation
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="relative w-full h-64 border rounded-lg overflow-hidden">
-                            <div 
-                                className="absolute inset-0 bg-gray-100 opacity-50"
-                                style={{
-                                    background: `linear-gradient(to right, green 0%, yellow 50%, red 100%)`,
-                                    width: `${simulationState.serverLoad}%`
-                                }}
-                            />
-                            <div className="relative z-10 w-full h-full">
-                                {renderConnections()}
-                            </div>
-                        </div>
-
-                        <div className="w-full h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={simulationState.trafficHistory}>
-                                    <XAxis dataKey="time" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Bar dataKey="total" fill="#8884d8" />
-                                    <Bar dataKey="blocked" fill="#82ca9d" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                    <div className="visualization">
+                        <div 
+                            className="connection-view"
+                            style={{
+                                background: `linear-gradient(to right, green 0%, yellow 50%, red 100%)`,
+                                backgroundSize: `${state.serverLoad}% 100%`,
+                                backgroundRepeat: 'no-repeat'
+                            }}
+                        >
+                            {renderConnections()}
                         </div>
                     </div>
 
-                    <div className="text-center mt-4">
-                        <div className="grid grid-cols-3 gap-4">
-                            <div>
-                                <p className="font-bold">Current Attack</p>
-                                <p>{simulationState.attackType?.name || 'Not Selected'}</p>
-                            </div>
-                            <div>
-                                <p className="font-bold">Defense Mechanism</p>
-                                <p>{simulationState.defendMechanism?.name || 'Not Selected'}</p>
-                            </div>
-                            <div>
-                                <p className="font-bold">Server Load</p>
-                                <p>{simulationState.serverLoad.toFixed(2)}%</p>
-                            </div>
+                    <div className="server-metrics">
+                        <div>
+                            <strong>Server Load:</strong> {state.serverLoad.toFixed(2)}%
+                        </div>
+                        <div>
+                            <strong>Total Connections:</strong> {state.totalConnections}
+                        </div>
+                        <div>
+                            <strong>Blocked Connections:</strong> {state.blockedConnections}
                         </div>
                     </div>
                 </div>
             );
-        }
+        };
 
-        ReactDOM.render(<NetworkTrafficSimulation />, document.getElementById('root'));
+        ReactDOM.render(<NetworkDDOSSimulation />, document.getElementById('root'));
     </script>
 </body>
 </html>
