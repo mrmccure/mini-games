@@ -1,283 +1,288 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Network Traffic & DDoS Defense Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17.0.2/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root" class="container mx-auto p-4"></div>
 
-const NetworkTrafficSimulation = () => {
-  const [simulationState, setSimulationState] = useState({
-    isRunning: false,
-    serverLoad: 0,
-    connections: [],
-    attackType: null,
-    defendMechanism: null,
-    trafficHistory: []
-  });
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
 
-  const simulationConfigRef = useRef({
-    attackTypes: {
-      volumetric: {
-        name: 'Volumetric Attack',
-        maxConnections: 300,
-        connectionRate: 50,
-        impact: 0.8
-      },
-      synFlood: {
-        name: 'SYN Flood',
-        maxConnections: 200,
-        connectionRate: 100,
-        impact: 0.6
-      },
-      httpFlood: {
-        name: 'HTTP Flood',
-        maxConnections: 250,
-        connectionRate: 75,
-        impact: 0.7
-      }
-    },
-    defendMechanisms: {
-      blackholing: {
-        name: 'Blackhole Routing',
-        effectiveness: 0.5,
-        description: 'Drops all traffic to targeted IP'
-      },
-      rateLimiting: {
-        name: 'Rate Limiting',
-        effectiveness: 0.7,
-        description: 'Restricts connection rate from suspicious IPs'
-      },
-      trafficFiltering: {
-        name: 'Traffic Filtering',
-        effectiveness: 0.8,
-        description: 'Blocks malicious packet patterns'
-      }
-    }
-  });
+        function NetworkTrafficSimulation() {
+            const [simulationState, setSimulationState] = useState({
+                isRunning: false,
+                serverLoad: 0,
+                connections: [],
+                attackType: null,
+                defendMechanism: null,
+                trafficHistory: []
+            });
 
-  const startSimulation = () => {
-    setSimulationState(prev => ({
-      ...prev,
-      isRunning: true,
-      serverLoad: 0,
-      connections: [],
-      trafficHistory: []
-    }));
-  };
+            const simulationConfigRef = useRef({
+                attackTypes: {
+                    volumetric: {
+                        name: 'Volumetric Attack',
+                        maxConnections: 300,
+                        connectionRate: 50,
+                        impact: 0.8
+                    },
+                    synFlood: {
+                        name: 'SYN Flood',
+                        maxConnections: 200,
+                        connectionRate: 100,
+                        impact: 0.6
+                    },
+                    httpFlood: {
+                        name: 'HTTP Flood',
+                        maxConnections: 250,
+                        connectionRate: 75,
+                        impact: 0.7
+                    }
+                },
+                defendMechanisms: {
+                    blackholing: {
+                        name: 'Blackhole Routing',
+                        effectiveness: 0.5,
+                        description: 'Drops all traffic to targeted IP'
+                    },
+                    rateLimiting: {
+                        name: 'Rate Limiting',
+                        effectiveness: 0.7,
+                        description: 'Restricts connection rate from suspicious IPs'
+                    },
+                    trafficFiltering: {
+                        name: 'Traffic Filtering',
+                        effectiveness: 0.8,
+                        description: 'Blocks malicious packet patterns'
+                    }
+                }
+            });
 
-  const stopSimulation = () => {
-    setSimulationState(prev => ({
-      ...prev,
-      isRunning: false
-    }));
-  };
+            const startSimulation = () => {
+                setSimulationState(prev => ({
+                    ...prev,
+                    isRunning: true,
+                    serverLoad: 0,
+                    connections: [],
+                    trafficHistory: []
+                }));
+            };
 
-  const selectAttackType = (attackKey) => {
-    if (!simulationState.isRunning) {
-      setSimulationState(prev => ({
-        ...prev,
-        attackType: simulationConfigRef.current.attackTypes[attackKey]
-      }));
-    }
-  };
+            const stopSimulation = () => {
+                setSimulationState(prev => ({
+                    ...prev,
+                    isRunning: false
+                }));
+            };
 
-  const selectDefendMechanism = (defendKey) => {
-    if (!simulationState.isRunning) {
-      setSimulationState(prev => ({
-        ...prev,
-        defendMechanism: simulationConfigRef.current.defendMechanisms[defendKey]
-      }));
-    }
-  };
+            const selectAttackType = (attackKey) => {
+                if (!simulationState.isRunning) {
+                    setSimulationState(prev => ({
+                        ...prev,
+                        attackType: simulationConfigRef.current.attackTypes[attackKey]
+                    }));
+                }
+            };
 
-  useEffect(() => {
-    let intervalId;
-    if (simulationState.isRunning && simulationState.attackType && simulationState.defendMechanism) {
-      const attack = simulationState.attackType;
-      const defend = simulationState.defendMechanism;
+            const selectDefendMechanism = (defendKey) => {
+                if (!simulationState.isRunning) {
+                    setSimulationState(prev => ({
+                        ...prev,
+                        defendMechanism: simulationConfigRef.current.defendMechanisms[defendKey]
+                    }));
+                }
+            };
 
-      intervalId = setInterval(() => {
-        setSimulationState(prev => {
-          // Simulate connection generation with defense mechanism
-          const newConnections = prev.connections.length < attack.maxConnections
-            ? [...prev.connections, {
-                id: Date.now() + Math.random(),
-                weight: Math.random(),
-                blocked: Math.random() < defend.effectiveness
-              }]
-            : prev.connections;
+            useEffect(() => {
+                let intervalId;
+                if (
+                    simulationState.isRunning && 
+                    simulationState.attackType && 
+                    simulationState.defendMechanism
+                ) {
+                    const attack = simulationState.attackType;
+                    const defend = simulationState.defendMechanism;
 
-          // Calculate server load considering defense
-          const activeConnections = newConnections.filter(conn => !conn.blocked);
-          const totalLoad = activeConnections.reduce((sum, conn) => sum + conn.weight, 0);
-          const serverLoad = Math.min(100, (totalLoad / attack.maxConnections) * 100 * attack.impact);
+                    intervalId = setInterval(() => {
+                        setSimulationState(prev => {
+                            const newConnections = prev.connections.length < attack.maxConnections
+                                ? [...prev.connections, {
+                                    id: Date.now() + Math.random(),
+                                    weight: Math.random(),
+                                    blocked: Math.random() < defend.effectiveness
+                                }]
+                                : prev.connections;
 
-          // Track traffic history
-          const newTrafficHistory = [
-            ...prev.trafficHistory,
-            { 
-              time: prev.trafficHistory.length,
-              total: newConnections.length,
-              blocked: newConnections.filter(c => c.blocked).length,
-              load: serverLoad
-            }
-          ].slice(-20);  // Keep last 20 entries
+                            const activeConnections = newConnections.filter(conn => !conn.blocked);
+                            const totalLoad = activeConnections.reduce((sum, conn) => sum + conn.weight, 0);
+                            const serverLoad = Math.min(100, (totalLoad / attack.maxConnections) * 100 * attack.impact);
 
-          return {
-            ...prev,
-            connections: newConnections,
-            serverLoad,
-            trafficHistory: newTrafficHistory
-          };
-        });
-      }, attack.connectionRate);
-    }
+                            const newTrafficHistory = [
+                                ...prev.trafficHistory,
+                                { 
+                                    time: prev.trafficHistory.length,
+                                    total: newConnections.length,
+                                    blocked: newConnections.filter(c => c.blocked).length,
+                                    load: serverLoad
+                                }
+                            ].slice(-20);
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [simulationState.isRunning, simulationState.attackType, simulationState.defendMechanism]);
+                            return {
+                                ...prev,
+                                connections: newConnections,
+                                serverLoad,
+                                trafficHistory: newTrafficHistory
+                            };
+                        });
+                    }, attack.connectionRate);
+                }
 
-  const renderConnections = () => {
-    return simulationState.connections.map((conn) => (
-      <div 
-        key={conn.id} 
-        className={`h-2 w-2 rounded-full absolute ${
-          conn.blocked ? 'bg-red-500' : 'bg-blue-500'
-        }`}
-        style={{
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
-          opacity: conn.weight
-        }}
-      />
-    ));
-  };
+                return () => {
+                    if (intervalId) clearInterval(intervalId);
+                };
+            }, [simulationState.isRunning, simulationState.attackType, simulationState.defendMechanism]);
 
-  return (
-    <div className="p-4 max-w-6xl mx-auto bg-white shadow-lg rounded-lg">
-      <h2 className="text-3xl font-bold mb-6 text-center">
-        Network Defense Simulation
-      </h2>
+            const renderConnections = () => {
+                return simulationState.connections.map((conn) => (
+                    <div 
+                        key={conn.id} 
+                        className={`h-2 w-2 rounded-full absolute ${
+                            conn.blocked ? 'bg-red-500' : 'bg-blue-500'
+                        }`}
+                        style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            opacity: conn.weight
+                        }}
+                    />
+                ));
+            };
 
-      {/* Attack Type Selection */}
-      <div className="mb-4">
-        <h3 className="text-xl font-semibold mb-2">Select Attack Type</h3>
-        <div className="flex space-x-2">
-          {Object.keys(simulationConfigRef.current.attackTypes).map((key) => (
-            <button
-              key={key}
-              className={`px-4 py-2 rounded ${
-                simulationState.attackType?.name === simulationConfigRef.current.attackTypes[key].name
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'
-              } ${simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => selectAttackType(key)}
-              disabled={simulationState.isRunning}
-            >
-              {simulationConfigRef.current.attackTypes[key].name}
-            </button>
-          ))}
-        </div>
-      </div>
+            return (
+                <div className="p-4 max-w-6xl mx-auto bg-white shadow-lg rounded-lg">
+                    <h2 className="text-3xl font-bold mb-6 text-center">
+                        Network Defense Simulation
+                    </h2>
 
-      {/* Defense Mechanism Selection */}
-      <div className="mb-4">
-        <h3 className="text-xl font-semibold mb-2">Select Defense Mechanism</h3>
-        <div className="flex space-x-2">
-          {Object.keys(simulationConfigRef.current.defendMechanisms).map((key) => (
-            <button
-              key={key}
-              className={`px-4 py-2 rounded ${
-                simulationState.defendMechanism?.name === simulationConfigRef.current.defendMechanisms[key].name
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'
-              } ${simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => selectDefendMechanism(key)}
-              disabled={simulationState.isRunning}
-            >
-              {simulationConfigRef.current.defendMechanisms[key].name}
-            </button>
-          ))}
-        </div>
-      </div>
+                    <div className="mb-4">
+                        <h3 className="text-xl font-semibold mb-2">Select Attack Type</h3>
+                        <div className="flex space-x-2">
+                            {Object.keys(simulationConfigRef.current.attackTypes).map((key) => (
+                                <button
+                                    key={key}
+                                    className={`px-4 py-2 rounded ${
+                                        simulationState.attackType?.name === simulationConfigRef.current.attackTypes[key].name
+                                            ? 'bg-blue-500 text-white' 
+                                            : 'bg-gray-200 text-gray-800'
+                                    } ${simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={() => selectAttackType(key)}
+                                    disabled={simulationState.isRunning}
+                                >
+                                    {simulationConfigRef.current.attackTypes[key].name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-      {/* Simulation Controls */}
-      <div className="flex space-x-2 mb-4 justify-center">
-        <button 
-          className={`px-6 py-3 bg-green-500 text-white rounded ${
-            simulationState.isRunning || !simulationState.attackType || !simulationState.defendMechanism 
-              ? 'opacity-50 cursor-not-allowed' 
-              : ''
-          }`}
-          onClick={startSimulation} 
-          disabled={simulationState.isRunning || !simulationState.attackType || !simulationState.defendMechanism}
-        >
-          Start Simulation
-        </button>
-        <button 
-          className={`px-6 py-3 bg-red-500 text-white rounded ${
-            !simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-          onClick={stopSimulation}
-          disabled={!simulationState.isRunning}
-        >
-          Stop Simulation
-        </button>
-      </div>
+                    <div className="mb-4">
+                        <h3 className="text-xl font-semibold mb-2">Select Defense Mechanism</h3>
+                        <div className="flex space-x-2">
+                            {Object.keys(simulationConfigRef.current.defendMechanisms).map((key) => (
+                                <button
+                                    key={key}
+                                    className={`px-4 py-2 rounded ${
+                                        simulationState.defendMechanism?.name === simulationConfigRef.current.defendMechanisms[key].name
+                                            ? 'bg-green-500 text-white' 
+                                            : 'bg-gray-200 text-gray-800'
+                                    } ${simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={() => selectDefendMechanism(key)}
+                                    disabled={simulationState.isRunning}
+                                >
+                                    {simulationConfigRef.current.defendMechanisms[key].name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-      {/* Visualization Area */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Network Connections Visualization */}
-        <div className="relative w-full h-64 border rounded-lg overflow-hidden">
-          <div 
-            className="absolute inset-0 bg-gray-100 opacity-50"
-            style={{
-              background: `linear-gradient(to right, green 0%, yellow 50%, red 100%)`,
-              width: `${simulationState.serverLoad}%`
-            }}
-          />
-          <div className="relative z-10 w-full h-full">
-            {renderConnections()}
-          </div>
-        </div>
+                    <div className="flex space-x-2 mb-4 justify-center">
+                        <button 
+                            className={`px-6 py-3 bg-green-500 text-white rounded ${
+                                simulationState.isRunning || !simulationState.attackType || !simulationState.defendMechanism 
+                                    ? 'opacity-50 cursor-not-allowed' 
+                                    : ''
+                            }`}
+                            onClick={startSimulation} 
+                            disabled={simulationState.isRunning || !simulationState.attackType || !simulationState.defendMechanism}
+                        >
+                            Start Simulation
+                        </button>
+                        <button 
+                            className={`px-6 py-3 bg-red-500 text-white rounded ${
+                                !simulationState.isRunning ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            onClick={stopSimulation}
+                            disabled={!simulationState.isRunning}
+                        >
+                            Stop Simulation
+                        </button>
+                    </div>
 
-        {/* Traffic History Chart */}
-        <div className="w-full h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={simulationState.trafficHistory}>
-              <XAxis dataKey="time" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="total" fill="#8884d8" />
-              <Bar dataKey="blocked" fill="#82ca9d" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="relative w-full h-64 border rounded-lg overflow-hidden">
+                            <div 
+                                className="absolute inset-0 bg-gray-100 opacity-50"
+                                style={{
+                                    background: `linear-gradient(to right, green 0%, yellow 50%, red 100%)`,
+                                    width: `${simulationState.serverLoad}%`
+                                }}
+                            />
+                            <div className="relative z-10 w-full h-full">
+                                {renderConnections()}
+                            </div>
+                        </div>
 
-      {/* Simulation Details */}
-      <div className="text-center mt-4">
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <p className="font-bold">Current Attack</p>
-            <p>{simulationState.attackType?.name || 'Not Selected'}</p>
-          </div>
-          <div>
-            <p className="font-bold">Defense Mechanism</p>
-            <p>{simulationState.defendMechanism?.name || 'Not Selected'}</p>
-          </div>
-          <div>
-            <p className="font-bold">Server Load</p>
-            <p>{simulationState.serverLoad.toFixed(2)}%</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+                        <div className="w-full h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={simulationState.trafficHistory}>
+                                    <XAxis dataKey="time" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Bar dataKey="total" fill="#8884d8" />
+                                    <Bar dataKey="blocked" fill="#82ca9d" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
 
-export default NetworkTrafficSimulation;
+                    <div className="text-center mt-4">
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <p className="font-bold">Current Attack</p>
+                                <p>{simulationState.attackType?.name || 'Not Selected'}</p>
+                            </div>
+                            <div>
+                                <p className="font-bold">Defense Mechanism</p>
+                                <p>{simulationState.defendMechanism?.name || 'Not Selected'}</p>
+                            </div>
+                            <div>
+                                <p className="font-bold">Server Load</p>
+                                <p>{simulationState.serverLoad.toFixed(2)}%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<NetworkTrafficSimulation />, document.getElementById('root'));
+    </script>
+</body>
+</html>
